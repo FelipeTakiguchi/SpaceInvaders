@@ -17,10 +17,14 @@ int y = 27; //Saída analógica (Eixo Y)
 int botao = 14; //Saída digital do botão (Eixo Z)
 int button4 = 12;
 int on_off  = 13;   
-                                                                                                                                                                                                                                                                                                                                                  
+
+int resposta = 0;                                                                                                                                                                                                                                                                                                                              
 int oldHiScore_ = 0;
 int pos = 1;
-int letra = 0;
+int selecionado = 0;
+int letra1 = 0;
+int letra2 = 0;
+int letra3 = 0;
 const char * alfabeto[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "W", "Y", "Z"};
 
 int movimento() {
@@ -39,6 +43,29 @@ int movimento() {
   if ((digitalRead(botao)) == 1) {
       //pressionado
      return 6;
+  }
+}
+
+int movimentoXY() {
+  if ((analogRead(x)) == 0 && selecionado != 1) {
+      //esquerda
+     return 1;
+     selecionado = 1;
+  }
+  else if ((analogRead(x)) == 4095 && (analogRead(x)) != 4095 && selecionado != 2) {
+      //direita
+     return 2;
+     selecionado = 2;
+  }
+  else if ((analogRead(y)) == 0 && selecionado != 3) {
+      //esquerda
+     return 3;
+     selecionado = 3;
+  }
+  else if ((analogRead(y)) == 4095 && selecionado != 4) {
+      //direita
+     return 4;
+     selecionado = 4;
   }
 }
 
@@ -584,16 +611,86 @@ struct GameScene : public Scene {
       canvas.drawRectangle(60, 60, 280, 130);
       canvas.setPenColor(255, 255, 255);
       canvas.drawTextFmt(100, 80, "NEW HIGH SCORE: %d", score_);
+
+      resposta = movimentoXY();
+
+      if(resposta == 1){
+        if(pos == 1){
+          letra1--;
+          if(letra1 < 0){
+            letra1 = 26;
+          }
+        } else if(pos == 2){
+          letra2--;
+          if(letra2 < 0){
+            letra2 = 26;
+          }
+        } else if(pos == 3){
+          letra3--;
+          if(letra3 < 0){
+            letra3 = 26;
+          }
+        }
+      }
+      else if(resposta == 2){
+        if(pos == 1){
+          letra1++;
+          if(letra1 < 26){
+            letra1 = 0;
+          }
+        } else if(pos == 2){
+          letra2++;
+          if(letra2 < 26){
+            letra2 = 0;
+          }
+        } else if(pos == 3){
+          letra3++;
+          if(letra3 > 26){
+            letra1 = 0;
+          }
+        }
+      }
+      else if(resposta == 3)      
+      {
+        pos--;
+        if(pos < 0)
+          pos = 3;
+      }
+      else if(resposta == 4){
+        pos++;
+        if(pos > 3)
+          pos = 1;
+      }
+
+      if(pos == 1){
+        canvas.setPenColor(255, 255, 0);
+        canvas.drawTextFmt(145, 95, "%c", alfabeto[letra1]);
+        canvas.setPenColor(255, 255, 255);
+      }
+      else
+        canvas.drawTextFmt(145, 95, "%c", alfabeto[letra1]);
+
+      if(pos == 2){
+        canvas.setPenColor(255, 255, 0);
+        canvas.drawTextFmt(160, 95, "%c", alfabeto[letra2]);
+        canvas.setPenColor(255, 255, 255);
+      }
+      else
+        canvas.drawTextFmt(160, 95, "%c", alfabeto[letra2]);
+
+      if(pos == 3){
+        canvas.setPenColor(255, 255, 0);
+        canvas.drawTextFmt(175, 95, "%c", alfabeto[letra3]);
+        canvas.setPenColor(255, 255, 255);
+      }
+      else
+        canvas.drawTextFmt(175, 95, "%c", alfabeto[letra3]);
       
-      canvas.setPenColor(255, 255, 0);
-//      canvas.drawText(145, 95, "A");
-//      canvas.drawText(160, 95, "A");
-//      canvas.drawText(175, 95, "A");
       canvas.drawText(80, 115, "PRESS [BUTTON] TO SAVE");
       
       if ((IntroScene::controller_ == 1 && (keyboard->isVKDown(fabgl::VK_SPACE)) || digitalRead(button4) == LOW) ||
         (IntroScene::controller_ == 2 && mouse->deltaAvailable() && mouse->getNextDelta(nullptr, 0) && mouse->status().buttons.left)) {
-          Serial.println("ACABOUUUU");
+          Serial.println("%c %c %c", alfabeto[letra1], alfabeto[letra2], alfabeto[letra3]);
       }
     }
     
