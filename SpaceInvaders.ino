@@ -16,7 +16,12 @@ int x = 26; //Saída analógica (Eixo X)
 int y = 27; //Saída analógica (Eixo Y)
 int botao = 14; //Saída digital do botão (Eixo Z)
 int button4 = 12;
-int on_off  = 13;                                                                                                                                                                                                                                                                                                                                                     
+int on_off  = 13;   
+                                                                                                                                                                                                                                                                                                                                                  
+int oldHiScore_ = 0;
+int pos = 1;
+int letra = 0;
+const char * alfabeto[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "W", "Y", "Z"};
 
 int movimento() {
   if ((analogRead(y)) == 0) {
@@ -168,7 +173,7 @@ struct GameScene : public Scene {
     uint8_t    enemyPoints;
   };
 
-  enum GameState { GAMESTATE_PLAYING, GAMESTATE_PLAYERKILLED, GAMESTATE_ENDGAME, GAMESTATE_GAMEOVER, GAMESTATE_LEVELCHANGING, GAMESTATE_LEVELCHANGED };
+  enum GameState { GAMESTATE_PLAYING, GAMESTATE_PLAYERKILLED, GAMESTATE_ENDGAME, GAMESTATE_GAMEOVER, GAMESTATE_LEVELCHANGING, GAMESTATE_LEVELCHANGED, GAMESTATE_SCORE };
 
   static const int PLAYERSCOUNT       = 1;
   static const int SHIELDSCOUNT       = 4;
@@ -542,8 +547,15 @@ struct GameScene : public Scene {
       }
     }
 
-    if (gameState_ == GAMESTATE_ENDGAME)
-      gameOver();
+    if (gameState_ == GAMESTATE_ENDGAME){
+      if(score_ > oldHiScore_){
+        oldHiScore_ = score_;
+        gameState_ = GAMESTATE_SCORE;  
+      }
+      else{        
+        gameOver();
+      }
+    }
 
     if (gameState_ == GAMESTATE_LEVELCHANGING)
       levelChange();
@@ -552,7 +564,7 @@ struct GameScene : public Scene {
       stop(); // restart from next level
       DisplayController.removeSprites();
     }
-
+    gameState_ = GAMESTATE_SCORE;
     if (gameState_ == GAMESTATE_GAMEOVER) {
 
       // animate player burning
@@ -561,13 +573,30 @@ struct GameScene : public Scene {
 
       // wait for SPACE or click from mouse
       if ((IntroScene::controller_ == 1 && (keyboard->isVKDown(fabgl::VK_SPACE)) || digitalRead(button4) == LOW) ||
-          (IntroScene::controller_ == 2 && mouse->deltaAvailable() && mouse->getNextDelta(nullptr, 0) && mouse->status().buttons.left)) {
+          (IntroScene::controller_ == 2 && mouse->deltaAvailable() && mouse->getNextDelta(nullptr, 0) && mouse->status().buttons.left)) {      
         stop();
         DisplayController.removeSprites();
       }
 
     }
 
+    if (gameState_ == GAMESTATE_SCORE) {
+      canvas.drawRectangle(60, 60, 280, 130);
+      canvas.setPenColor(255, 255, 255);
+      canvas.drawTextFmt(100, 80, "NEW HIGH SCORE: %d", score_);
+      
+      canvas.setPenColor(255, 255, 0);
+//      canvas.drawText(145, 95, "A");
+//      canvas.drawText(160, 95, "A");
+//      canvas.drawText(175, 95, "A");
+      canvas.drawText(80, 115, "PRESS [BUTTON] TO SAVE");
+      
+      if ((IntroScene::controller_ == 1 && (keyboard->isVKDown(fabgl::VK_SPACE)) || digitalRead(button4) == LOW) ||
+        (IntroScene::controller_ == 2 && mouse->deltaAvailable() && mouse->getNextDelta(nullptr, 0) && mouse->status().buttons.left)) {
+          Serial.println("ACABOUUUU");
+      }
+    }
+    
     DisplayController.refreshSprites();
   }
 
