@@ -18,6 +18,8 @@ int botao = 14; //Saída digital do botão (Eixo Z)
 int button4 = 12;
 int on_off  = 13;   
 
+bool is_shooting = false;
+int delay_ = 200;
 int resposta = 0;                                                                                                                                                                                                                                                                                                                              
 int oldHiScore_ = 0;
 int pos = 1;
@@ -25,7 +27,8 @@ int selecionado = 0;
 int letra1 = 0;
 int letra2 = 0;
 int letra3 = 0;
-const char * alfabeto[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "W", "Y", "Z"};
+char * alfabeto[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "W", "Y", "Z"};
+char * nome[] = { "", "", "", "" };
 
 int movimento() {
   if ((analogRead(y)) == 0) {
@@ -39,25 +42,36 @@ int movimento() {
 }
 
 int movimentoXY() {
-  if ((analogRead(x)) == 0 && selecionado != 1) {
-      //baixo
-     return 1;
-     selecionado = 1;
-  }
-  else if ((analogRead(x)) == 4095 && (analogRead(y)) != 4095 && selecionado != 2) {
-      //cima
-     return 2;
-     selecionado = 2;
-  }
-  else if ((analogRead(y)) == 0 && selecionado != 3) {
-      //esquerda
-     return 3;
-     selecionado = 3;
-  }
-  else if ((analogRead(y)) == 4095 && selecionado != 4) {
-      //direita
-     return 4;
-     selecionado = 4;
+  delay_++;
+  if(delay>=0){
+    if ((analogRead(x)) == 0 && selecionado != 1) {
+        //baixo
+       selecionado = 1;
+       delay_ = 0;
+       return 1;
+    }
+    else if ((analogRead(x)) == 4095 && (analogRead(y)) != 4095 && selecionado != 2) {
+        //cima
+       selecionado = 2;
+       delay_ = 0;
+       return 2;
+    }
+    else if ((analogRead(y)) == 0 && selecionado != 3) {
+        //esquerda
+       selecionado = 3;
+       delay_ = 0;
+       return 3;
+    }
+    else if ((analogRead(y)) == 4095 && selecionado != 4) {
+        //direita
+       selecionado = 4;
+       delay_ = 0;
+       return 4;
+    }
+    else{
+      selecionado = 0;
+      return 0;
+    }
   }
 }
 
@@ -359,7 +373,11 @@ struct GameScene : public Scene {
     if (score_ > hiScore_)
       hiScore_ = score_;
     canvas.setPenColor(255, 255, 255);
-    canvas.drawTextFmt(266, 14, "%05d", hiScore_);
+    canvas.drawText(245, 14, nome[0]);
+    canvas.drawText(253, 14, nome[1]);
+    canvas.drawText(261, 14, nome[2]);
+    canvas.drawText(268, 14, nome[3]);
+    canvas.drawTextFmt(276, 14, "%05d", hiScore_);
   }
 
   void moveEnemy(SISprite * enemy, int x, int y, bool * touchSide)
@@ -428,7 +446,11 @@ struct GameScene : public Scene {
     }
 
     if (gameState_ == GAMESTATE_PLAYING || gameState_ == GAMESTATE_PLAYERKILLED) {
-
+      if(digitalRead(button4) == LOW){
+        is_shooting = true;
+      } else{
+        is_shooting = false;
+      }
       // move enemies and shoot
       if ((updateCount % std::max(3, 21 - level_ * 2)) == 0) {
         // handle enemy explosion
@@ -563,14 +585,19 @@ struct GameScene : public Scene {
 
     if (gameState_ == GAMESTATE_ENDGAME){
       if(score_ > oldHiScore_){
+        pauseStart_ = esp_timer_get_time();
         oldHiScore_ = score_;
-        gameState_ = GAMESTATE_SCORE;  
+        gameState_ = GAMESTATE_SCORE;
+        
+        // disable enemies drawing, so text can be over them
+        for (int i = 0; i < ROWENEMIESCOUNT * 5; ++i)
+          enemies_[i].allowDraw = false;
       }
       else{        
         gameOver();
       }
     }
-
+    
     if (gameState_ == GAMESTATE_LEVELCHANGING)
       levelChange();
 
@@ -578,34 +605,51 @@ struct GameScene : public Scene {
       stop(); // restart from next level
       DisplayController.removeSprites();
     }
-    gameState_ = GAMESTATE_SCORE;
-    if (gameState_ == GAMESTATE_GAMEOVER) {
 
+    Serial.println(digitalRead(button4));
+    
+    if (digitalRead(button4) == HIGH)
+      is_shooting = false;
+    if (gameState_ == GAMESTATE_GAMEOVER) {
       // animate player burning
       if ((updateCount % 20) == 0)
         player_->setFrame( player_->getFrameIndex() == 1 ? 2 : 1);
 
       // wait for SPACE or click from mouse
-      if (digitalRead(button4) == LOW) {      
+      if (digitalRead(button4) == LOW && is_shooting == false) {      
         stop();
         DisplayController.removeSprites();
       }
-
     }
-
+      
     if (gameState_ == GAMESTATE_SCORE) {
-      // disable enemies drawing, so text can be over them
-      for (int i = 0; i < ROWENEMIESCOUNT * 5; ++i)
-        enemies_[i].allowDraw = false;
-
-      canvas.fillRectangle(60, 60, 280, 130);
-      canvas.drawRectangle(60, 60, 280, 130);
       canvas.setPenColor(255, 255, 255);
       canvas.drawTextFmt(100, 80, "NEW HIGH SCORE: %d", score_);
-
-      resposta = movimentoXY();
-
+      canvas.drawText(80, 115, "PRESS [BUTTON] TO SAVE");
+      if(esp_timer_get_time() >= pauseStart_ + 700000){
+        pauseStart_ = esp_timer_get_time();
+        resposta = movimentoXY();
+      }
+      
       if(resposta == 1){
+        if(pos == 1){
+          letra1++;
+          if(letra1 > 25){
+            letra1 = 0;
+          }
+        } else if(pos == 2){
+          letra2++;
+          if(letra2 > 25){
+            letra2 = 0;
+          }
+        } else if(pos == 3){
+          letra3++;
+          if(letra3 > 25){
+            letra3 = 0;
+          }
+        }
+      }
+      else if(resposta == 2){
         if(pos == 1){
           letra1--;
           if(letra1 < 0){
@@ -623,28 +667,10 @@ struct GameScene : public Scene {
           }
         }
       }
-      else if(resposta == 2){
-        if(pos == 1){
-          letra1++;
-          if(letra1 > 25){
-            letra1 = 0;
-          }
-        } else if(pos == 2){
-          letra2++;
-          if(letra2 > 25){
-            letra2 = 0;
-          }
-        } else if(pos == 3){
-          letra3++;
-          if(letra3 > 25){
-            letra1 = 0;
-          }
-        }
-      }
       else if(resposta == 3)      
       {
         pos--;
-        if(pos < 0)
+        if(pos < 1)
           pos = 3;
       }
       else if(resposta == 4){
@@ -676,14 +702,22 @@ struct GameScene : public Scene {
       }
       else
         canvas.drawText(175, 95, alfabeto[letra3]);
-      
-      canvas.drawText(80, 115, "PRESS [BUTTON] TO SAVE");
-      
-      if (digitalRead(button4) == LOW) {
+
+      if (digitalRead(button4) == LOW && is_shooting == false) {
         stop();
+        
         DisplayController.removeSprites();
+        nome[0] = alfabeto[letra1];
+        nome[1] = alfabeto[letra2];
+        nome[2] = alfabeto[letra3];
+        nome[3] = ":";
+         
         // change state
         level_ = 1;
+        letra1 = 0;
+        letra2 = 0;
+        letra3 = 0;
+        pos = 1;
         lives_ = 3;
         score_ = 0;
       }
