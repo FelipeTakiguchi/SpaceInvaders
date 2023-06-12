@@ -1,4 +1,4 @@
-#include "fabgl.h"
+  #include "fabgl.h"
 #include "fabutils.h"
 
 #include "sprites.h"
@@ -11,15 +11,25 @@ fabgl::Canvas        canvas(&DisplayController);
 fabgl::PS2Controller PS2Controller;
 SoundGenerator soundGenerator(16000, GPIO_NUM_5, SoundGenMethod::SigmaDelta);
 
+//Conexão CAT6
+// Laranja = GND
+// Azul = 5V
+// Branco-Laranja - 26
+// Branco-Marrom - 27
+// Branco-Azul - 22
+// Branco-Verde - GND Botão
+// Verde - 12
+// Marrom - 14
+
+int led = 22;
+
 // 12 14 27 26 13
 int x = 26; //Saída analógica (Eixo X)
 int y = 27; //Saída analógica (Eixo Y)
 int botao = 14; //Saída digital do botão (Eixo Z)
 int button4 = 12;
-int on_off  = 13;   
 
 bool is_shooting = false;
-int delay_ = 200;
 int resposta = 0;                                                                                                                                                                                                                                                                                                                              
 int oldHiScore_ = 0;
 int pos = 1;
@@ -30,48 +40,53 @@ int letra3 = 0;
 char * alfabeto[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "W", "Y", "Z"};
 char * nome[] = { "", "", "", "" };
 
+int delay_ = 15;
+
 int movimento() {
-  if ((analogRead(y)) == 0) {
+  Serial.println(analogRead(y));
+  if ((analogRead(y)) < 2780) {
       //esquerda
      return 3;
   }
-  if ((analogRead(y)) == 4095) {
+  if ((analogRead(y)) > 3570) {
       //direita
      return 4;
   }
+
+  return 0;
 }
 
 int movimentoXY() {
-  delay_++;
-  if(delay>=0){
-    if ((analogRead(x)) == 0 && selecionado != 1) {
+  if(delay_>=12){
+    if ((analogRead(x)) == 0) {
         //baixo
-       selecionado = 1;
        delay_ = 0;
        return 1;
-    }
-    else if ((analogRead(x)) == 4095 && (analogRead(y)) != 4095 && selecionado != 2) {
+     }
+    else if ((analogRead(x)) == 4095 && (analogRead(y)) != 4095) {
         //cima
-       selecionado = 2;
        delay_ = 0;
        return 2;
     }
-    else if ((analogRead(y)) == 0 && selecionado != 3) {
+    else if ((analogRead(y)) == 0) {
         //esquerda
-       selecionado = 3;
        delay_ = 0;
        return 3;
     }
-    else if ((analogRead(y)) == 4095 && selecionado != 4) {
+    else if ((analogRead(y)) == 4095) {
         //direita
-       selecionado = 4;
        delay_ = 0;
        return 4;
     }
-    else{
+    else if(analogRead(x) != 0 && analogRead(x) != 4095 && analogRead(y) != 0 && analogRead(y) != 4095){
+      Serial.println(analogRead(x));
+      Serial.println("___________");
+      Serial.println(analogRead(y));
+      delay_ = 12;
       selecionado = 0;
       return 0;
     }
+    return -1;
   }
 }
 
@@ -377,7 +392,7 @@ struct GameScene : public Scene {
     canvas.drawText(253, 14, nome[1]);
     canvas.drawText(261, 14, nome[2]);
     canvas.drawText(268, 14, nome[3]);
-    canvas.drawTextFmt(276, 14, "%05d", hiScore_);
+    canvas.drawTextFmt(276, 14, "%05d", oldHiScore_);
   }
 
   void moveEnemy(SISprite * enemy, int x, int y, bool * touchSide)
@@ -621,15 +636,15 @@ struct GameScene : public Scene {
         DisplayController.removeSprites();
       }
     }
-      
+
+    delay_++;
+  
     if (gameState_ == GAMESTATE_SCORE) {
       canvas.setPenColor(255, 255, 255);
       canvas.drawTextFmt(100, 80, "NEW HIGH SCORE: %d", score_);
       canvas.drawText(80, 115, "PRESS [BUTTON] TO SAVE");
-      if(esp_timer_get_time() >= pauseStart_ + 700000){
-        pauseStart_ = esp_timer_get_time();
-        resposta = movimentoXY();
-      }
+ 
+      resposta = movimentoXY();
       
       if(resposta == 1){
         if(pos == 1){
@@ -809,7 +824,7 @@ int GameScene::score_   = 0;
 
 void setup()
 {
-  pinMode(on_off, INPUT);
+  pinMode(led, OUTPUT);
   pinMode(botao, INPUT_PULLUP);
   pinMode(button4, INPUT_PULLUP);
   
@@ -826,6 +841,8 @@ void setup()
 
 void loop()
 {
+  Serial.println("Alo");
+  digitalWrite(led, HIGH);
   if (GameScene::level_ == 1) {
     IntroScene introScene;
     introScene.start();
